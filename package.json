@@ -1,0 +1,9 @@
+{
+  "name": "fishing-tycoon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An incremental fishing tycoon for the family games shelf. Built on gamekit.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="gk-version" content="1" data-date="2026-09-17" data-kit="1.10.1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Fishing Tycoon 🎣 — Just One More Cast</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f6f9e">
+<meta name="description" content="Start with a cheap rod and $25. Catch fish, sell your haul, upgrade your gear, discover strange things, hire a crew, buy boats — and build a surprisingly successful fishing business.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fishing Tycoon">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/gk-base.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
+</head>
+<body>
+
+<!-- Splash -->
+<div class="screen active" id="screen-splash">
+  <div class="splash-inner">
+    <canvas class="splash-art" id="splash-art" width="280" height="150" aria-hidden="true"></canvas>
+    <h1 class="logo">FISHING<span>TYCOON</span></h1>
+    <p class="tagline">A cheap rod, $25 and a pond. Just one more cast…</p>
+    <button class="btn big sun" id="btn-continue-as" style="display:none"></button>
+    <button class="btn big sun" id="btn-start" onclick="App.play()">🎣 Start Fishing</button>
+    <button class="btn ghost" id="btn-install" style="display:none">📲 Add to Home Screen</button>
+    <div class="splash-foot">
+      <span id="sync-badge">…</span>
+      <button class="btn-sound icon-btn" aria-label="Sound on or off">🔊</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile picker (roster + PIN modals rendered by GK.Profiles) -->
+<div class="screen" id="screen-profiles">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.showScreen('splash')" aria-label="Back">←</button>
+      <h2>Who's fishing?</h2>
+      <button class="btn-sound icon-btn" aria-label="Sound on or off">🔊</button>
+    </header>
+    <div class="profile-list" id="profile-list"></div>
+  </div>
+</div>
+
+<!-- The fishing spot -->
+<div class="screen" id="screen-game">
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Fishing scene. Tap or hold anywhere to fish."></canvas>
+
+    <header class="hud-top" id="hud-top">
+      <button class="pill loc-pill" id="btn-map" aria-label="Choose where to fish">
+        <span id="hud-loc-emoji">🪷</span><b id="hud-loc">Little Pond</b><span class="caret">▾</span>
+      </button>
+      <div class="money-pill" id="money-pill" role="status" aria-live="polite">
+        <b id="hud-cash">$25</b>
+        <small id="hud-rate"></small>
+      </div>
+      <div class="hud-right">
+        <button class="icon-btn" id="btn-goals" aria-label="Goals">🏅<span class="dot" id="goal-dot" hidden></span></button>
+        <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <div class="event-banner" id="event-banner" hidden></div>
+
+    <div class="side-chips" id="side-chips">
+      <button class="chip" id="chip-target"></button>
+      <button class="chip" id="chip-goal"></button>
+    </div>
+
+    <div class="coach" id="coach" hidden></div>
+
+    <div class="catch-card" id="catch-card" hidden>
+      <div class="cc-flags" id="cc-flags"></div>
+      <div class="cc-art" id="cc-art"></div>
+      <div class="cc-name" id="cc-name"></div>
+      <div class="cc-rarity" id="cc-rarity"></div>
+      <div class="cc-stats">
+        <span id="cc-kg"></span>
+        <span id="cc-val"></span>
+      </div>
+      <p class="cc-desc" id="cc-desc"></p>
+    </div>
+
+    <nav class="control-bar" id="control-bar">
+      <button class="nav-btn" id="nav-shop"><i>🛒</i><span>Shop</span></button>
+      <button class="nav-btn" id="nav-journal"><i>📖</i><span id="nav-journal-n">Journal</span></button>
+      <button class="cast-btn" id="btn-cast" aria-label="Cast"><span id="cast-label">CAST</span><small id="cast-sub"></small></button>
+      <button class="nav-btn haul-btn" id="nav-haul"><i>🧺</i><span id="haul-label">0/6</span></button>
+      <button class="nav-btn" id="nav-business"><i>🏢</i><span>Business</span></button>
+    </nav>
+  </div>
+</div>
+
+<!-- Shop -->
+<div class="screen" id="screen-shop">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back to fishing">←</button>
+      <h2>🛒 Tackle Shop</h2>
+      <span class="money-tag" data-money>$0</span>
+    </header>
+    <div class="tabs" id="shop-tabs" role="tablist"></div>
+    <p class="tab-hint" id="shop-hint"></p>
+    <div class="card-list" id="shop-list"></div>
+  </div>
+</div>
+
+<!-- Journal -->
+<div class="screen" id="screen-journal">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back to fishing">←</button>
+      <h2>📖 Fishing Journal</h2>
+      <span class="money-tag" id="journal-count">0 / 0</span>
+    </header>
+    <div class="journal-progress"><div class="jp-fill" id="journal-fill"></div></div>
+    <div class="tabs" id="journal-tabs" role="tablist"></div>
+    <div id="journal-body"></div>
+  </div>
+</div>
+
+<!-- Business -->
+<div class="screen" id="screen-business">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back to fishing">←</button>
+      <h2>🏢 Your Business</h2>
+      <span class="money-tag" data-money>$0</span>
+    </header>
+    <div class="harbour-wrap"><canvas id="harbour"></canvas></div>
+    <div class="income-card" id="income-card"></div>
+    <div class="tabs" id="biz-tabs" role="tablist"></div>
+    <div class="card-list" id="biz-list"></div>
+  </div>
+</div>
+
+<!-- Goals -->
+<div class="screen" id="screen-goals">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back to fishing">←</button>
+      <h2>🏅 Goals</h2>
+      <span class="money-tag" id="goals-count">0 / 0</span>
+    </header>
+    <div class="goal-list" id="goal-list"></div>
+  </div>
+</div>
+
+<!-- Map -->
+<div class="screen" id="screen-map">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back to fishing">←</button>
+      <h2>🗺️ Where to fish?</h2>
+      <span class="money-tag" data-money>$0</span>
+    </header>
+    <div class="map-list" id="map-list"></div>
+  </div>
+</div>
+
+<!-- Leaderboard -->
+<div class="screen" id="screen-leaderboard">
+  <div class="page">
+    <header class="bar">
+      <button class="icon-btn" onclick="App.back()" aria-label="Back">←</button>
+      <h2>🏆 Family Leaderboard</h2>
+      <span></span>
+    </header>
+    <div class="lb-rows" id="lb-rows"></div>
+  </div>
+</div>
+
+<!-- Haul / selling -->
+<div class="modal" id="modal-haul">
+  <div class="modal-box receipt">
+    <h3>🧺 Today's Haul</h3>
+    <div class="receipt-lines" id="haul-lines"></div>
+    <div class="receipt-total"><span>TOTAL</span><b id="haul-total">$0</b></div>
+    <p class="receipt-note" id="haul-note"></p>
+    <button class="btn big sun wide" id="btn-sell">💰 SELL HAUL</button>
+    <button class="btn ghost wide" onclick="App.closeHaul()">Keep fishing</button>
+  </div>
+</div>
+
+<!-- Journal entry -->
+<div class="modal" id="modal-entry">
+  <div class="modal-box entry" id="entry-box"></div>
+</div>
+
+<!-- While you were away -->
+<div class="modal" id="modal-away">
+  <div class="modal-box away">
+    <div class="away-art">⛵💤</div>
+    <h3>While you were away…</h3>
+    <p id="away-text"></p>
+    <div class="away-amount" id="away-amount">$0</div>
+    <p class="away-note" id="away-note"></p>
+    <button class="btn big sun wide" id="btn-collect">💰 Collect</button>
+  </div>
+</div>
+
+<!-- Competition result -->
+<div class="modal" id="modal-comp">
+  <div class="modal-box comp" id="comp-box"></div>
+</div>
+
+<!-- Settings -->
+<div class="modal" id="modal-settings">
+  <div class="modal-box settings">
+    <h3>⚙️ Settings</h3>
+    <label class="set-row"><span>🎵 Music</span><input type="range" min="0" max="100" id="set-music"></label>
+    <label class="set-row"><span>🔔 Sound effects</span><input type="range" min="0" max="100" id="set-sfx"></label>
+    <div class="set-row"><span>🔇 Mute everything</span><button class="toggle" id="set-mute" role="switch"></button></div>
+    <div class="set-row"><span>🐢 Easy reeling<small>Wider green zone, longer to react</small></span><button class="toggle" id="set-easy" role="switch"></button></div>
+    <div class="set-row"><span>🌙 Reduce motion<small>Less shaking, fewer particles</small></span><button class="toggle" id="set-motion" role="switch"></button></div>
+    <div class="set-grid">
+      <button class="btn blue" onclick="App.showHelp()">❓ How to play</button>
+      <button class="btn blue" onclick="App.showStats()">📊 Statistics</button>
+      <button class="btn blue" onclick="App.showLeaderboard()">🏆 Leaderboard</button>
+      <button class="btn blue" onclick="App.switchPlayer()">👥 Switch player</button>
+    </div>
+    <button class="btn sun wide" onclick="GK.UI.closeModal('modal-settings')">Back to fishing</button>
+  </div>
+</div>
+
+<!-- How to play -->
+<div class="modal" id="modal-help">
+  <div class="modal-box">
+    <h3>❓ How to Play</h3>
+    <ol class="help-steps">
+      <li><b>Cast</b> — tap the big button (or anywhere on the water).</li>
+      <li>When the bobber dips and you see <b>!</b>, <b>tap</b> to hook the fish.</li>
+      <li><b>Hold</b> to reel in and <b>let go</b> to give line. Keep the white marker inside the <b>striped green zone</b> until the fish is landed.</li>
+      <li>Your catch goes in the <b>🧺 haul</b>. When it's full, <b>sell it</b> for cash.</li>
+      <li>Spend cash in the <b>🛒 Shop</b> on better gear, new bait and new places to fish.</li>
+      <li>Hire <b>helpers</b> and buy <b>boats</b> in <b>🏢 Business</b> — they earn money even while the game is closed.</li>
+      <li>Every new catch goes in the <b>📖 Journal</b>. Can you find all of them?</li>
+    </ol>
+    <button class="btn sun wide" onclick="GK.UI.closeModal('modal-help')">Got it!</button>
+  </div>
+</div>
+
+<!-- Statistics -->
+<div class="modal" id="modal-stats">
+  <div class="modal-box stats">
+    <h3>📊 Statistics</h3>
+    <div class="stat-grid" id="stat-grid"></div>
+    <button class="btn sun wide" onclick="GK.UI.closeModal('modal-stats')">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="coin-layer" id="coin-layer" aria-hidden="true"></div>
+
+<!-- gamekit (vendored from rvenning/gamekit into lib/) -->
+<script src="lib/gk-util.js"></script>
+<script src="lib/gk-audio.js"></script>
+<script src="lib/gk-ui.js"></script>
+<script src="lib/gk-storage.js"></script>
+<script src="lib/gk-profiles.js"></script>
+<script src="lib/gk-pwa.js"></script>
+<script src="lib/gk-fx.js"></script>
+<script src="lib/gk-debug.js"></script>
+<script>
+  // Wet, bright juice: splashes and coins rather than sparks.
+  const Fx = GK.Fx.configure({
+    grav: 520, poolCap: 500, shakeMax: 8, shakeDecay: 30, shape: "circle",
+    burstSpeed: 160, burstSize: 3.0, textSize: 16, textDy: -40, textCap: 16,
+    font: "'Fredoka', sans-serif",
+  });
+</script>
+<script src="js/firebase-config.js"></script>
+<!-- data registries -->
+<script src="js/catches.js"></script>
+<script src="js/locations.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/goals.js"></script>
+<script src="js/events.js"></script>
+<!-- rules -->
+<script src="js/game.js"></script>
+<script src="js/reel.js"></script>
+<script src="js/fishing.js"></script>
+<!-- presentation -->
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
