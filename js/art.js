@@ -46,11 +46,16 @@ const Art = {
 
   pen(w) { return Math.max(1.2, w * 0.018); },
 
+  // One warm brown pen for everything, with a faint second pass beside it
+  // so edges read as drawn rather than ruled (Storybook Pond).
   outline(ctx, base, w) {
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.strokeStyle = shade(base, -0.45);
-    ctx.lineWidth = this.pen(w);
+    ctx.strokeStyle = Paint.penFor(base);
+    ctx.lineWidth = this.pen(w) * 1.1;
     ctx.stroke();
+    ctx.save(); ctx.translate(this.pen(w) * 0.3, this.pen(w) * 0.2);
+    ctx.globalAlpha *= 0.3; ctx.lineWidth = this.pen(w) * 0.6; ctx.stroke();
+    ctx.restore();
   },
 
   ellipse(ctx, x, y, rx, ry, rot = 0) {
@@ -113,13 +118,30 @@ const Art = {
     if (mode === "sil") {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = "source-in";
-      ctx.fillStyle = "#26384a";
+      ctx.fillStyle = "#6f5a44";
       ctx.fillRect(0, 0, cv.width, cv.height);
-    } else if (mode === "gold") {
-      this.gildCanvas(ctx, cv);
+    } else {
+      if (mode === "gold") this.gildCanvas(ctx, cv);
+      this.paperGrain(ctx, cv);
     }
     this.cache.set(key, cv);
     return cv;
+  },
+
+  // Multiply paper grain through the painted pixels only, so every catch
+  // sits on the same paper as the world around it.
+  paperGrain(ctx, cv) {
+    const mask = document.createElement("canvas");
+    mask.width = cv.width; mask.height = cv.height;
+    mask.getContext("2d").drawImage(cv, 0, 0);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = 0.5;
+    ctx.fillStyle = ctx.createPattern(Paint.grain(), "repeat");
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "destination-in";
+    ctx.drawImage(mask, 0, 0);
+    ctx.restore();
   },
 
   gildCanvas(ctx, cv) {
@@ -879,99 +901,10 @@ const Art = {
 
   /* ------------------------------------------------------------ people */
 
-  // Colours per character. The player is `you`; helpers each own a silhouette
-  // cue (Sam's cap, Mia's backpack, Old Jack's beard, Penny's bun, Nana's
-  // sunhat, Kofi's captain's hat) so they read even when small.
-  PEOPLE: {
-    you:   { skin: "#f1c7a0", shirt: "#e3643a", pants: "#35577f", hat: "bucket", hatC: "#e8c24a" },
-    sam:   { skin: "#c8906a", shirt: "#3f8a5a", pants: "#4a4a58", hat: "cap", hatC: "#2f6fb8" },
-    mia:   { skin: "#f4d0b0", shirt: "#8a5ac0", pants: "#2f4a6a", hat: "hair", hatC: "#3a2418", pack: "#e0a030" },
-    penny: { skin: "#e8b890", shirt: "#d8465a", pants: "#3a3a4a", hat: "bun", hatC: "#6a3a1a", apron: "#fff6e0" },
-    jack:  { skin: "#e8b89a", shirt: "#5a6e8a", pants: "#5a4a3a", hat: "beanie", hatC: "#b8362a", beard: "#eeeeee" },
-    nana:  { skin: "#f0c8a8", shirt: "#e88aa8", pants: "#7a6aa0", hat: "sunhat", hatC: "#f4e2a8" },
-    kofi:  { skin: "#7a5238", shirt: "#f2f2f2", pants: "#20304a", hat: "captain", hatC: "#20304a" },
-  },
-
-  // A standing or sitting figure, feet at (0,0), `s` = height in px.
+  // People are painted by Paint.figure (one pen, a hat each); this keeps the
+  // old signature: feet at (0,0), `s` = height in px.
   person(ctx, who, s, pose = {}) {
-    const p = this.PEOPLE[who] || this.PEOPLE.you;
-    const u = s / 100;
-    ctx.save();
-    const sit = pose.sit;
-    // legs
-    ctx.fillStyle = p.pants;
-    if (sit) {
-      ctx.beginPath(); ctx.roundRect(-10 * u, -34 * u, 26 * u, 12 * u, 5 * u); ctx.fill();
-      ctx.beginPath(); ctx.roundRect(8 * u, -34 * u, 9 * u, 34 * u, 4 * u); ctx.fill();
-      ctx.fillStyle = "#3a2a20"; ctx.beginPath(); ctx.roundRect(6 * u, -6 * u, 16 * u, 7 * u, 3 * u); ctx.fill();
-    } else {
-      ctx.beginPath(); ctx.roundRect(-10 * u, -42 * u, 9 * u, 42 * u, 4 * u); ctx.fill();
-      ctx.beginPath(); ctx.roundRect(2 * u, -42 * u, 9 * u, 42 * u, 4 * u); ctx.fill();
-      ctx.fillStyle = "#3a2a20";
-      ctx.beginPath(); ctx.roundRect(-12 * u, -6 * u, 13 * u, 7 * u, 3 * u); ctx.fill();
-      ctx.beginPath(); ctx.roundRect(1 * u, -6 * u, 13 * u, 7 * u, 3 * u); ctx.fill();
-    }
-    const bodyTop = sit ? -70 * u : -78 * u, bodyBot = sit ? -30 * u : -38 * u;
-    if (p.pack) { ctx.fillStyle = p.pack; ctx.beginPath(); ctx.roundRect(-20 * u, bodyTop + 6 * u, 12 * u, 30 * u, 4 * u); ctx.fill(); }
-    // body
-    ctx.fillStyle = p.shirt;
-    ctx.beginPath(); ctx.roundRect(-13 * u, bodyTop, 26 * u, bodyBot - bodyTop, 9 * u); ctx.fill();
-    ctx.strokeStyle = shade(p.shirt, -0.45); ctx.lineWidth = Math.max(1, 2.2 * u); ctx.stroke();
-    if (p.apron) { ctx.fillStyle = p.apron; ctx.beginPath(); ctx.roundRect(-9 * u, bodyTop + 12 * u, 18 * u, bodyBot - bodyTop - 10 * u, 4 * u); ctx.fill(); }
-    // arms reach toward the rod grip (or rest)
-    const hand = pose.hand || { x: 18 * u, y: bodyTop + 22 * u };
-    ctx.strokeStyle = p.shirt; ctx.lineWidth = 8 * u; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(6 * u, bodyTop + 8 * u); ctx.lineTo(hand.x, hand.y); ctx.stroke();
-    ctx.fillStyle = p.skin; this.ellipse(ctx, hand.x, hand.y, 4.5 * u, 4.5 * u); ctx.fill();
-    // head
-    const hy = bodyTop - 14 * u;
-    this.ellipse(ctx, 0, hy, 15 * u, 15 * u); ctx.fillStyle = p.skin; ctx.fill();
-    ctx.strokeStyle = shade(p.skin, -0.45); ctx.lineWidth = Math.max(1, 2 * u); ctx.stroke();
-    if (p.beard) {
-      ctx.beginPath(); ctx.moveTo(-12 * u, hy + 2 * u); ctx.quadraticCurveTo(2 * u, hy + 26 * u, 14 * u, hy + 2 * u);
-      ctx.fillStyle = p.beard; ctx.fill();
-    }
-    // face (looking right, toward the water)
-    ctx.fillStyle = "#2a2020";
-    this.ellipse(ctx, 6 * u, hy - 2 * u, 2 * u, 2.4 * u); ctx.fill();
-    ctx.strokeStyle = "#8a4a3a"; ctx.lineWidth = Math.max(1, 1.6 * u);
-    ctx.beginPath(); ctx.arc(7 * u, hy + 5 * u, 4 * u, 0.2, 1.4); ctx.stroke();
-    ctx.fillStyle = "rgba(230,120,110,0.35)"; this.ellipse(ctx, 10 * u, hy + 4 * u, 3 * u, 2 * u); ctx.fill();
-    // hats
-    ctx.fillStyle = p.hatC;
-    switch (p.hat) {
-      case "bucket":
-        ctx.beginPath(); ctx.roundRect(-12 * u, hy - 20 * u, 24 * u, 12 * u, 5 * u); ctx.fill();
-        this.ellipse(ctx, 0, hy - 9 * u, 20 * u, 5 * u); ctx.fill();
-        break;
-      case "cap":
-        ctx.beginPath(); ctx.arc(0, hy - 6 * u, 14 * u, Math.PI, 0); ctx.fill();
-        ctx.fillRect(4 * u, hy - 8 * u, 18 * u, 4 * u);
-        break;
-      case "hair":
-        ctx.beginPath(); ctx.arc(0, hy - 3 * u, 16 * u, Math.PI * 0.95, Math.PI * 1.9); ctx.fill();
-        this.ellipse(ctx, -14 * u, hy + 4 * u, 5 * u, 12 * u); ctx.fill();
-        break;
-      case "bun":
-        ctx.beginPath(); ctx.arc(0, hy - 3 * u, 15.5 * u, Math.PI * 0.9, Math.PI * 1.95); ctx.fill();
-        this.ellipse(ctx, -4 * u, hy - 20 * u, 7 * u, 6 * u); ctx.fill();
-        break;
-      case "beanie":
-        ctx.beginPath(); ctx.arc(0, hy - 5 * u, 15 * u, Math.PI, 0); ctx.fill();
-        this.ellipse(ctx, 0, hy - 22 * u, 4 * u, 4 * u); ctx.fillStyle = "#fff"; ctx.fill();
-        break;
-      case "sunhat":
-        this.ellipse(ctx, 0, hy - 9 * u, 25 * u, 6 * u); ctx.fill();
-        ctx.beginPath(); ctx.arc(0, hy - 9 * u, 11 * u, Math.PI, 0); ctx.fill();
-        ctx.fillStyle = "#e88aa8"; ctx.fillRect(-11 * u, hy - 13 * u, 22 * u, 3 * u);
-        break;
-      case "captain":
-        ctx.beginPath(); ctx.roundRect(-13 * u, hy - 22 * u, 26 * u, 11 * u, 4 * u); ctx.fill();
-        ctx.fillStyle = "#fff"; ctx.fillRect(-14 * u, hy - 13 * u, 28 * u, 4 * u);
-        ctx.fillStyle = "#f2c032"; this.ellipse(ctx, 0, hy - 17 * u, 3 * u, 3 * u); ctx.fill();
-        break;
-    }
-    ctx.restore();
+    Paint.figure(ctx, who, s / 100, pose);
   },
 
   /* ------------------------------------------------------------ boats */
@@ -985,7 +918,7 @@ const Art = {
       ctx.moveTo(-len / 2 * u, -h * u); ctx.lineTo(len / 2 * u + 8 * u, -h * u);
       ctx.quadraticCurveTo(len / 2 * u, 4 * u, len / 2 * u - 12 * u, 6 * u);
       ctx.lineTo(-len / 2 * u + 6 * u, 6 * u); ctx.closePath();
-      ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = shade(col, -0.45); ctx.lineWidth = Math.max(1, 2 * u); ctx.stroke();
+      ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = Paint.penFor(col); ctx.lineWidth = Math.max(1.2, 2.4 * u); ctx.stroke();
       ctx.fillStyle = deck; ctx.fillRect(-len / 2 * u, -h * u - 3 * u, len * u + 8 * u, 4 * u);
     };
     switch (id) {
@@ -1001,10 +934,10 @@ const Art = {
         // The player's deep-water boat: wheelhouse at the stern, open deck forward.
         hull("#2a3a4a", "#d8342a", 120, 20);
         ctx.fillStyle = "#f2efe6"; ctx.fillRect(-60 * u, -48 * u, 30 * u, 26 * u);
-        ctx.strokeStyle = "#3a4a5a"; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-60 * u, -48 * u, 30 * u, 26 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-60 * u, -48 * u, 30 * u, 26 * u);
         ctx.fillStyle = "#7fc8f0"; ctx.fillRect(-56 * u, -43 * u, 9 * u, 8 * u); ctx.fillRect(-44 * u, -43 * u, 9 * u, 8 * u);
         ctx.fillStyle = "#d8342a"; ctx.fillRect(-62 * u, -52 * u, 34 * u, 5 * u);
-        ctx.strokeStyle = "#8a96a6"; ctx.lineWidth = Math.max(1, 1.5 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u);
         ctx.beginPath(); ctx.moveTo(-45 * u, -52 * u); ctx.lineTo(-45 * u, -70 * u); ctx.stroke();
         ctx.fillStyle = `rgba(255,220,120,${0.6 + 0.4 * Math.sin(t * 3)})`; this.ellipse(ctx, -45 * u, -71 * u, 2.5 * u, 2.5 * u); ctx.fill();
         break;
@@ -1012,21 +945,21 @@ const Art = {
         hull("#e8664a", "#f6e2c0", 80, 12);
         ctx.fillStyle = "#6b4a2e"; ctx.fillRect(-2 * u, -60 * u, 3 * u, 48 * u);
         ctx.beginPath(); ctx.moveTo(2 * u, -58 * u); ctx.quadraticCurveTo(30 * u, -34 * u, 34 * u, -16 * u); ctx.lineTo(2 * u, -16 * u); ctx.closePath();
-        ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.strokeStyle = "#c8b89a"; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.stroke();
+        ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.stroke();
         break;
       case "fishingboat":
         hull("#2f6fb8", "#e8e0d0", 90, 16);
         ctx.fillStyle = "#fffaf0"; ctx.fillRect(-20 * u, -40 * u, 30 * u, 22 * u);
-        ctx.strokeStyle = "#3a4a5a"; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-20 * u, -40 * u, 30 * u, 22 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-20 * u, -40 * u, 30 * u, 22 * u);
         ctx.fillStyle = "#7fc8f0"; ctx.fillRect(-14 * u, -35 * u, 8 * u, 7 * u); ctx.fillRect(-2 * u, -35 * u, 8 * u, 7 * u);
         ctx.fillStyle = "#d8342a"; ctx.fillRect(-22 * u, -44 * u, 34 * u, 5 * u);
-        ctx.strokeStyle = "#5a4a3a"; ctx.lineWidth = Math.max(1, 2 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 2 * u);
         ctx.beginPath(); ctx.moveTo(24 * u, -18 * u); ctx.lineTo(34 * u, -56 * u); ctx.lineTo(48 * u, -20 * u); ctx.stroke();
         break;
       case "trawler":
         hull("#2a3a4a", "#d8342a", 110, 20);
         ctx.fillStyle = "#f2efe6"; ctx.fillRect(-40 * u, -48 * u, 38 * u, 26 * u);
-        ctx.strokeStyle = "#3a4a5a"; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-40 * u, -48 * u, 38 * u, 26 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u); ctx.strokeRect(-40 * u, -48 * u, 38 * u, 26 * u);
         ctx.fillStyle = "#7fc8f0"; for (let i = 0; i < 3; i++) ctx.fillRect((-36 + i * 11) * u, -43 * u, 7 * u, 7 * u);
         ctx.fillStyle = "#e8b43a"; ctx.fillRect(-30 * u, -64 * u, 8 * u, 16 * u);
         ctx.strokeStyle = "#e8b43a"; ctx.lineWidth = Math.max(1, 3 * u);
@@ -1041,7 +974,7 @@ const Art = {
         hull("#f2f2f2", "#1f5fae", 130, 24);
         ctx.fillStyle = "#1f5fae"; ctx.fillRect(-60 * u, -12 * u, 132 * u, 5 * u);
         ctx.fillStyle = "#fffaf0"; ctx.fillRect(-50 * u, -54 * u, 60 * u, 30 * u); ctx.fillRect(-40 * u, -74 * u, 36 * u, 20 * u);
-        ctx.strokeStyle = "#4a5a6a"; ctx.lineWidth = Math.max(1, 1.5 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u);
         ctx.strokeRect(-50 * u, -54 * u, 60 * u, 30 * u); ctx.strokeRect(-40 * u, -74 * u, 36 * u, 20 * u);
         ctx.fillStyle = "#2a3a4a"; for (let i = 0; i < 5; i++) ctx.fillRect((-46 + i * 11) * u, -47 * u, 7 * u, 6 * u);
         ctx.fillStyle = "#f2c032"; this.ellipse(ctx, 40 * u, -34 * u, 10 * u, 10 * u); ctx.fill(); ctx.stroke();
@@ -1052,7 +985,7 @@ const Art = {
       case "charter":
         hull("#fffaf0", "#2aa38a", 96, 14);
         ctx.fillStyle = "#2aa38a"; ctx.fillRect(-30 * u, -38 * u, 50 * u, 4 * u);
-        ctx.strokeStyle = "#6a7a8a"; ctx.lineWidth = Math.max(1, 1.5 * u);
+        ctx.strokeStyle = Paint.INK; ctx.lineWidth = Math.max(1, 1.5 * u);
         for (const x of [-28, -4, 18]) { ctx.beginPath(); ctx.moveTo(x * u, -34 * u); ctx.lineTo(x * u, -16 * u); ctx.stroke(); }
         ctx.fillStyle = "#f4c7a0";
         for (let i = 0; i < 4; i++) { this.ellipse(ctx, (-22 + i * 12) * u, -22 * u, 3.5 * u, 3.5 * u); ctx.fill(); }

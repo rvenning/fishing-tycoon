@@ -10,7 +10,7 @@ const SAVE_EVERY = 3;          // seconds between background saves
 const COACH = [
   "Tap CAST to throw out your line! 🎣",
   "Wait for the bobber to dip…",
-  "Hold to reel in, let go to give line. Keep the white marker in the green!",
+  "Hold to reel in, let go to give line. Keep the needle in the green!",
   "Nice catch! Catch a few more, then sell your haul 🧺",
   "Spend your money in the Shop 🛒",
 ];
@@ -55,12 +55,15 @@ const App = {
     });
 
     GK.initPWA({ appName: "Fishing Tycoon" });
+    Paint.installTextures();
     Scene.init(this.el("cv"));
     this.bindFishing();
     this.bindInput();
     this.bindButtons();
     this.bindSettings();
     this.drawSplashArt();
+    // The sign is lettered in Caprasimo; repaint it once the font has arrived.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { this.drawSplashArt(); Scene.bakeKey = ""; Paint.mount(); });
 
     document.addEventListener("gesturestart", (e) => e.preventDefault());
     document.addEventListener("gesturechange", (e) => e.preventDefault());
@@ -108,6 +111,7 @@ const App = {
     if (name === "game") {
       Scene.resize(); setTimeout(() => Scene.resize(), 400);
       this.measureInsets();
+      Paint.mount();
       this.hud(true);
     }
     if (name === "business") setTimeout(() => UI.sizeHarbour(), 50);
@@ -721,7 +725,8 @@ const App = {
     const cap = Econ.capacity(S), n = S.haul.length;
     const haul = this.el("nav-haul");
     const val = Econ.haulValue(S, this.ev);
-    this.setHTML(this.el("haul-label"), `Haul ${n}/${cap}${n ? `<small>${fmtMoney(val)}</small>` : ""}`);
+    const narrow = window.innerWidth < 520;
+    this.setHTML(this.el("haul-label"), `${narrow ? "" : "Haul "}${n}/${cap}${n ? `<small>${fmtMoney(val)}</small>` : ""}`);
     haul.classList.toggle("full", n >= cap);
     haul.setAttribute("aria-label", `Haul: ${n} of ${cap}, worth ${fmtMoney(val)}. Tap to sell.`);
     let fill = haul.querySelector(".fill");
@@ -765,7 +770,7 @@ const App = {
     if (ph === "cast") { cls = "wait"; l = "…"; }
     else if (ph === "wait") { cls = "wait"; l = "WAIT…"; s = "for the bobber"; }
     else if (ph === "bite") { cls = "bite"; l = "TAP!"; s = "hook it!"; }
-    else if (ph === "reel") { cls = "reel"; l = Fishing.holding ? "REELING" : "HOLD"; s = Fishing.holding ? "let go if too tight" : "to reel in"; }
+    else if (ph === "reel") { cls = "reel"; l = Fishing.holding ? "REEL" : "HOLD"; s = Fishing.holding ? "let go if tight" : "to reel in"; }
     else if (ph === "show") { l = "CAST"; s = "one more!"; }
     else if (!Fishing.canCast()) { cls = "blocked"; l = "SELL"; s = "haul is full"; }
     const next = `cast-btn ${cls}${btn.classList.contains("held") ? " held" : ""}`;
@@ -855,8 +860,8 @@ const App = {
     el.textContent = msg;
     // While reeling the meter sits where the bubble usually does; while a
     // catch card is up the bubble goes above it.
-    el.classList.toggle("high", Fishing.phase === "reel");
-    el.classList.toggle("top", Fishing.phase === "show");
+    el.classList.remove("high");
+    el.classList.toggle("top", Fishing.phase === "show" || Fishing.phase === "reel");
     el.hidden = false;
     if (text) { this._coachUntil = this.clock + 2.2; this._coachTimer = setTimeout(() => { this._coachUntil = 0; this.coach(); }, 2600); }
   },
@@ -928,25 +933,35 @@ const App = {
     }
   },
 
+  // The splash is the game's first promise about how it looks, so it uses the
+  // same painters as the game: the wooden sign, and a trout leaping out of a
+  // little painted pond.
   drawSplashArt() {
-    const cv = this.el("splash-art");
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = 280 * dpr; cv.height = 150 * dpr;
+    const logo = this.el("logo-cv");
+    logo.width = 500 * dpr; logo.height = 380 * dpr;
+    const lctx = logo.getContext("2d");
+    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    Paint.logo(lctx, 500, 380);
+
+    const cv = this.el("splash-art");
+    cv.width = 340 * dpr; cv.height = 150 * dpr;
     const ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // water
-    const g = ctx.createLinearGradient(0, 96, 0, 150);
-    g.addColorStop(0, "rgba(47,134,180,0)"); g.addColorStop(0.3, "rgba(47,134,180,0.55)"); g.addColorStop(1, "rgba(19,75,110,0.8)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(140, 128, 136, 26, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2;
-    for (const r of [22, 40, 58]) { ctx.beginPath(); ctx.ellipse(150, 120, r, r * 0.25, 0, 0, Math.PI * 2); ctx.stroke(); }
-    // the fish leaping
-    ctx.save(); ctx.translate(146, 62); ctx.rotate(-0.35);
-    Art.drawCatch(ctx, CATCH.golden_trout, 170);
+    const pond = Paint.blob(170, 118, 160, 30, 4, 28, 0.06);
+    ctx.save(); Paint.trace(ctx, pond); ctx.clip();
+    const g = ctx.createLinearGradient(0, 88, 0, 150); g.addColorStop(0, "#9ccbc0"); g.addColorStop(1, "#2f7078");
+    ctx.fillStyle = g; ctx.fillRect(0, 80, 340, 80);
     ctx.restore();
-    // splash drops
-    ctx.fillStyle = "#e6f7ff";
-    for (const [x, y, r] of [[96, 104, 5], [112, 92, 4], [196, 100, 5], [210, 88, 3.5], [182, 84, 3]]) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+    Paint.ink(ctx, pond, true, 2.2, Paint.INK, 0.6);
+    Paint.tree(ctx, 24, 104, 0.75, 3); Paint.conifer(ctx, 312, 106, 0.8, 5);
+    Paint.lilyPad(ctx, 70, 128, 20, 2, true);
+    for (const r of [22, 40, 58]) { ctx.strokeStyle = "rgba(255,255,245,0.7)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(186, 116, r, r * 0.25, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.save(); ctx.translate(176, 60); ctx.rotate(-0.35);
+    Art.drawCatch(ctx, CATCH.golden_trout, 160);
+    ctx.restore();
+    Paint.splash(ctx, 186, 112, 1, 7);
+    Paint.grainOver(ctx, 340, 150, 0.25);
   },
 };
 

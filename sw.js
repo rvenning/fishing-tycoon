@@ -6,7 +6,7 @@
 // BUMP THE CACHE NAME (node lib/tools/stamp-version.js . --bump) whenever any
 // shell file below changes, or devices keep serving the copy they already have.
 
-const CACHE = "fishing-tycoon-v1";
+const CACHE = "fishing-tycoon-v2";
 
 const SHELL = [
   "./",
@@ -33,6 +33,7 @@ const SHELL = [
   "js/fishing.js",
   "js/storage.js",
   "js/audio.js",
+  "js/paint.js",
   "js/art.js",
   "js/scene.js",
   "js/ui.js",

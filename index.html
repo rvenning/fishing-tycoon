@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="gk-version" content="1" data-date="2026-09-17" data-kit="1.10.1">
+<meta name="gk-version" content="2" data-date="2026-09-17" data-kit="1.10.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <title>Fishing Tycoon 🎣 — Just One More Cast</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1f6f9e">
+<meta name="theme-color" content="#9c6536">
 <meta name="description" content="Start with a cheap rod and $25. Catch fish, sell your haul, upgrade your gear, discover strange things, hire a crew, buy boats — and build a surprisingly successful fishing business.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Fishing Tycoon">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Nunito:wght@600;700;800;900&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/gk-base.css">
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎣</text></svg>">
@@ -24,8 +24,9 @@
 <!-- Splash -->
 <div class="screen active" id="screen-splash">
   <div class="splash-inner">
-    <canvas class="splash-art" id="splash-art" width="280" height="150" aria-hidden="true"></canvas>
-    <h1 class="logo">FISHING<span>TYCOON</span></h1>
+    <h1 class="sr-only">Fishing Tycoon</h1>
+    <canvas class="logo-cv" id="logo-cv" aria-hidden="true"></canvas>
+    <canvas class="splash-art" id="splash-art" aria-hidden="true"></canvas>
     <p class="tagline">A cheap rod, $25 and a pond. Just one more cast…</p>
     <button class="btn big sun" id="btn-continue-as" style="display:none"></button>
     <button class="btn big sun" id="btn-start" onclick="App.play()">🎣 Start Fishing</button>
@@ -59,8 +60,8 @@
         <span id="hud-loc-emoji">🪷</span><b id="hud-loc">Little Pond</b><span class="caret">▾</span>
       </button>
       <div class="money-pill" id="money-pill" role="status" aria-live="polite">
-        <b id="hud-cash">$25</b>
-        <small id="hud-rate"></small>
+        <canvas class="coin" data-icon="coin" aria-hidden="true"></canvas>
+        <span class="sums"><b id="hud-cash">$25</b><small id="hud-rate"></small></span>
       </div>
       <div class="hud-right">
         <button class="icon-btn" id="btn-goals" aria-label="Goals">🏅<span class="dot" id="goal-dot" hidden></span></button>
@@ -90,11 +91,11 @@
     </div>
 
     <nav class="control-bar" id="control-bar">
-      <button class="nav-btn" id="nav-shop"><i>🛒</i><span>Shop</span></button>
-      <button class="nav-btn" id="nav-journal"><i>📖</i><span id="nav-journal-n">Journal</span></button>
-      <button class="cast-btn" id="btn-cast" aria-label="Cast"><span id="cast-label">CAST</span><small id="cast-sub"></small></button>
-      <button class="nav-btn haul-btn" id="nav-haul"><i>🧺</i><span id="haul-label">0/6</span></button>
-      <button class="nav-btn" id="nav-business"><i>🏢</i><span>Business</span></button>
+      <button class="nav-btn" id="nav-shop"><canvas class="nav-ic" data-icon="shop" aria-hidden="true"></canvas><span>Shop</span></button>
+      <button class="nav-btn" id="nav-journal"><canvas class="nav-ic" data-icon="journal" aria-hidden="true"></canvas><span id="nav-journal-n">Journal</span></button>
+      <button class="cast-btn" id="btn-cast" aria-label="Cast"><canvas class="dial-mark" data-icon="rodmark" aria-hidden="true"></canvas><span id="cast-label">CAST</span><small id="cast-sub"></small></button>
+      <button class="nav-btn haul-btn" id="nav-haul"><canvas class="nav-ic" data-icon="haul" aria-hidden="true"></canvas><span id="haul-label">0/6</span></button>
+      <button class="nav-btn" id="nav-business"><canvas class="nav-ic" data-icon="business" aria-hidden="true"></canvas><span>Business</span></button>
     </nav>
   </div>
 </div>
@@ -238,7 +239,7 @@
     <ol class="help-steps">
       <li><b>Cast</b> — tap the big button (or anywhere on the water).</li>
       <li>When the bobber dips and you see <b>!</b>, <b>tap</b> to hook the fish.</li>
-      <li><b>Hold</b> to reel in and <b>let go</b> to give line. Keep the white marker inside the <b>striped green zone</b> until the fish is landed.</li>
+      <li><b>Hold</b> to reel in and <b>let go</b> to give line. Keep the gauge's needle inside the <b>striped green zone</b> until the fish is landed.</li>
       <li>Your catch goes in the <b>🧺 haul</b>. When it's full, <b>sell it</b> for cash.</li>
       <li>Spend cash in the <b>🛒 Shop</b> on better gear, new bait and new places to fish.</li>
       <li>Hire <b>helpers</b> and buy <b>boats</b> in <b>🏢 Business</b> — they earn money even while the game is closed.</li>
@@ -274,7 +275,7 @@
   const Fx = GK.Fx.configure({
     grav: 520, poolCap: 500, shakeMax: 8, shakeDecay: 30, shape: "circle",
     burstSpeed: 160, burstSize: 3.0, textSize: 16, textDy: -40, textCap: 16,
-    font: "'Fredoka', sans-serif",
+    font: "'Nunito', sans-serif",
   });
 </script>
 <script src="js/firebase-config.js"></script>
@@ -291,6 +292,7 @@
 <!-- presentation -->
 <script src="js/storage.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/paint.js"></script>
 <script src="js/art.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/ui.js"></script>

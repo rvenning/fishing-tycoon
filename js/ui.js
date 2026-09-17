@@ -56,20 +56,23 @@ const UI = {
   icon(track) {
     const wrap = document.createElement("div");
     wrap.className = "card-icon";
-    if (track.helper || track.boat || track.id === "charter" || track.cat === "rod") {
+    const painted = ["reel", "line", "tackle"].includes(track.cat);
+    if (track.helper || track.boat || track.id === "charter" || track.cat === "rod" || painted) {
       const cv = document.createElement("canvas");
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       cv.width = 64 * dpr; cv.height = 64 * dpr;
       const ctx = cv.getContext("2d");
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (track.helper) { ctx.translate(30, 62); Art.person(ctx, track.id, 58, {}); }
+      if (track.helper) { Paint.drawPerson(ctx, track.id, 30, 64, 60, false); }
+      else if (painted) Paint.icon(ctx, track.cat, 64);
       else if (track.cat === "rod") {
         const look = track.levels[Math.max(1, Econ.own(App.S, "rod")) - 1].look;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = shade(look.c, -0.4); ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(10, 56); ctx.lineTo(56, 8); ctx.stroke();
-        ctx.strokeStyle = look.c; ctx.lineWidth = 4.5; ctx.beginPath(); ctx.moveTo(10, 56); ctx.lineTo(56, 8); ctx.stroke();
-        ctx.strokeStyle = look.tip; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(44, 20); ctx.lineTo(56, 8); ctx.stroke();
-        Art.ellipse(ctx, 20, 50, 7, 7); ctx.fillStyle = "#c9ccd2"; ctx.fill(); ctx.strokeStyle = "#6a6f78"; ctx.lineWidth = 1.5; ctx.stroke();
+        Paint.wash(ctx, Paint.blob(32, 33, 27, 26, 3, 22, 0.05), "#e6efd9", { layers: 2, edge: 0.2 });
+        const rod = () => { ctx.moveTo(12, 54); ctx.quadraticCurveTo(30, 36, 52, 10); };
+        Paint.line(ctx, rod, 7, Paint.INK, 1);
+        Paint.line(ctx, rod, 4, look.c, 1);
+        Paint.line(ctx, () => { ctx.moveTo(44, 20); ctx.lineTo(52, 10); }, 2.4, look.tip, 1);
+        Art.ellipse(ctx, 22, 46, 6, 6); ctx.fillStyle = "#c9ccd2"; ctx.fill(); ctx.strokeStyle = Paint.INK; ctx.lineWidth = 1.6; ctx.stroke();
       } else { ctx.translate(30, 46); Art.boat(ctx, track.id, 46, 0); }
       wrap.appendChild(cv);
     } else {
@@ -379,6 +382,18 @@ const UI = {
 
   /* ------------------------------------------------------------ map */
 
+  // One painted postcard per location, painted once.
+  lands: {},
+  land(kind) {
+    if (this.lands[kind]) return this.lands[kind];
+    const cv = document.createElement("canvas");
+    cv.width = 440; cv.height = 240;
+    const ctx = cv.getContext("2d");
+    ctx.scale(2, 2);
+    Paint.landscape(ctx, 220, 120, kind);
+    return (this.lands[kind] = cv);
+  },
+
   renderMap() {
     const S = App.S;
     const list = this.el("map-list");
@@ -392,7 +407,8 @@ const UI = {
       card.className = "place" + (owned ? "" : " locked");
       const sc = loc.scene;
       card.innerHTML = `
-        <div class="place-art" style="background: linear-gradient(180deg, ${sc.sky[0]} 0%, ${sc.sky[1]} 48%, ${sc.water[0]} 52%, ${sc.water[1]} 100%)">
+        <div class="place-art">
+          <canvas width="440" height="240" aria-hidden="true"></canvas>
           <h3>${loc.emoji} ${esc(loc.name)}</h3>
           ${S.loc === loc.id ? `<span class="here">📍 You are here</span>` : ""}
         </div>
@@ -400,6 +416,7 @@ const UI = {
           <p>${esc(loc.blurb)}</p>
           <div class="place-meta">📖 ${found} / ${species.length} discovered</div>
         </div>`;
+      card.querySelector(".place-art canvas").getContext("2d").drawImage(this.land(sc.kind), 0, 0);
       const bodyEl = card.querySelector(".place-body");
       const act = document.createElement("div");
       act.className = "card-action";
