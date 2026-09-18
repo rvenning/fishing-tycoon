@@ -324,7 +324,7 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   box-shadow: inset 0 0 0 2px #ecd6a8, 0 4px 0 var(--wood-dk); min-width: 0; position: relative;
   transition: transform var(--quick);
 }
-.nav-btn .nav-ic { width: 40px; height: 40px; display: block; }
+.nav-btn .nav-ic { width: 36px; height: 36px; display: block; flex: none; }
 .nav-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 0 4px; line-height: 1.05; }
 .nav-btn span small { display: block; font-size: 0.78em; font-weight: 900; color: var(--ink-soft); }
 .nav-btn:active { transform: translateY(4px); box-shadow: inset 0 0 0 2px #ecd6a8, 0 0 0 var(--wood-dk); }
@@ -332,7 +332,7 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 .haul-btn.full { background: linear-gradient(#c94a3a, var(--berry)); color: #fff; border-color: var(--berry-sh); }
 .haul-btn.full span small { color: #fff4dc; }
-.haul-btn .fill { position: absolute; left: 10px; right: 10px; bottom: 5px; height: 5px; border-radius: 3px; background: rgba(90, 58, 32, 0.18); overflow: hidden; }
+.haul-btn .fill { display: block; flex: none; width: 78%; height: 5px; margin-top: 2px; border-radius: 3px; background: rgba(90, 58, 32, 0.18); overflow: hidden; }
 .haul-btn .fill b { display: block; height: 100%; background: var(--leaf); }
 .haul-btn.full .fill b { background: #fff4dc; }
 
@@ -341,29 +341,34 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   border: none; cursor: pointer; font-family: inherit; position: relative;
   width: 100%; max-width: 148px; justify-self: center; aspect-ratio: 1; margin-top: -46px;
   border-radius: 50%; color: var(--ink);
+  --f1: #fffaf0; --f2: #f6e6c2; --f3: #ecd3a0;
+  /* The face is concentric with the ring (closest-side), so it covers the same
+     amount of wood all the way round; the highlight is a separate soft spot. */
   background:
-    radial-gradient(circle at 42% 36%, #fffaf0 0 18%, #f6e6c2 48%, #ecd3a0 60%, transparent 61%),
+    radial-gradient(circle closest-side at 38% 32%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle closest-side, var(--f1) 0 22%, var(--f2) 58%, var(--f3) 83%, var(--wood-dk) 84.5%, transparent 87%),
     var(--wood-tex), var(--wood);
-  background-size: 100% 100%, cover, auto;
+  background-size: 100% 100%, 100% 100%, cover, auto;
   box-shadow: inset 0 0 0 4px var(--wood-dk), inset 0 0 0 7px rgba(255, 220, 170, 0.35), 0 5px 0 var(--wood-dk), 0 12px 24px rgba(40, 25, 10, 0.3);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   transition: transform 0.08s, box-shadow 0.08s;
   touch-action: none;
 }
+/* a bezel line just inside the face, clear of the words */
 .cast-btn::before {
-  content: ""; position: absolute; inset: 20%; border-radius: 50%;
-  border: 2.5px solid rgba(74, 50, 34, 0.55);
+  content: ""; position: absolute; inset: 11%; border-radius: 50%;
+  border: 2px solid rgba(74, 50, 34, 0.4);
 }
 .cast-btn .dial-mark { width: 30%; height: auto; aspect-ratio: 1; margin-bottom: -2px; position: relative; }
 .cast-btn span { font-family: var(--display); font-weight: 400; font-size: clamp(1.35rem, 4.2vw, 1.9rem); letter-spacing: 0.02em; line-height: 1; position: relative; }
 .cast-btn small { font-size: 0.78rem; font-weight: 900; margin-top: 2px; position: relative; color: var(--ink); }
 .cast-btn:active, .cast-btn.held { transform: translateY(5px); box-shadow: inset 0 0 0 4px var(--wood-dk), inset 0 0 0 7px rgba(255, 220, 170, 0.35), 0 0 0 var(--wood-dk), 0 6px 12px rgba(40, 25, 10, 0.3); }
-.cast-btn.bite { background: radial-gradient(circle at 42% 36%, #fff6d6 0 18%, #f7cf6a 48%, #f0b93f 60%, transparent 61%), var(--wood-tex), var(--wood); background-size: 100% 100%, cover, auto; animation: bitePulse 0.35s ease-in-out infinite; }
+.cast-btn.bite { --f1: #fff6d6; --f2: #f7cf6a; --f3: #f0b93f; animation: bitePulse 0.35s ease-in-out infinite; }
 .cast-btn.bite small { color: var(--ink); }
 @keyframes bitePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
-.cast-btn.reel { background: radial-gradient(circle at 42% 36%, #f2fbe6 0 18%, #cfe8b0 48%, #a9d284 60%, transparent 61%), var(--wood-tex), var(--wood); background-size: 100% 100%, cover, auto; }
-.cast-btn.wait { background: radial-gradient(circle at 42% 36%, #ffffff 0 18%, #e8eee6 48%, #d4e2dc 60%, transparent 61%), var(--wood-tex), var(--wood); background-size: 100% 100%, cover, auto; }
-.cast-btn.blocked { background: radial-gradient(circle at 42% 36%, #fff0ea 0 18%, #f2c4b8 48%, #e39c8a 60%, transparent 61%), var(--wood-tex), var(--wood); background-size: 100% 100%, cover, auto; }
+.cast-btn.reel { --f1: #f2fbe6; --f2: #cfe8b0; --f3: #a9d284; }
+.cast-btn.wait { --f1: #ffffff; --f2: #e8eee6; --f3: #d4e2dc; }
+.cast-btn.blocked { --f1: #fff0ea; --f2: #f2c4b8; --f3: #e39c8a; }
 
 /* ---------- shared page pieces ---------- */
 .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 12px; scrollbar-width: none; }
@@ -571,7 +576,7 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   .nav-btn span { padding: 0 1px; }
   .cast-btn { margin-top: -34px; }
   .cast-btn span { font-size: clamp(1rem, 5.6vw, 1.5rem); }
-  .cast-btn small { font-size: 0.62rem; white-space: nowrap; }
+  .cast-btn small { font-size: 0.56rem; white-space: nowrap; }
   .pill { padding: 0 10px 0 8px; font-size: 1.2rem; }
   .loc-pill b { display: none; }
   .money-pill { padding: 3px 10px 3px 6px; }
@@ -588,9 +593,12 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
 }
 @media (max-height: 500px) and (orientation: landscape) {
   :root { --bar-h: 84px; }
-  .nav-btn { height: 60px; }
-  .nav-btn .nav-ic { width: 28px; height: 28px; }
+  .nav-btn { height: 60px; font-size: 0.8rem; }
+  .nav-btn .nav-ic { width: 22px; height: 22px; }
+  .haul-btn .fill { height: 4px; margin-top: 1px; }
   .cast-btn { max-width: 104px; margin-top: -30px; }
+  .cast-btn span { font-size: 1.2rem; }
+  .cast-btn small { font-size: 0.58rem; white-space: nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

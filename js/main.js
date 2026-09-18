@@ -57,6 +57,14 @@ const App = {
     GK.initPWA({ appName: "Fishing Tycoon" });
     Paint.installTextures();
     Scene.init(this.el("cv"));
+    // The notes down the left (saving up for, goals) sit over the canvas; the
+    // reel gauge asks for them when it picks a spot, so it never slides under.
+    Scene.covered = () => {
+      const stage = this.el("stage").getBoundingClientRect();
+      return [...this.el("side-chips").children].map((c) => c.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0)
+        .map((r) => ({ x0: r.left - stage.left, y0: r.top - stage.top, x1: r.right - stage.left, y1: r.bottom - stage.top }));
+    };
     this.bindFishing();
     this.bindInput();
     this.bindButtons();

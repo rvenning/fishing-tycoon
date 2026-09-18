@@ -152,12 +152,18 @@ const Scene = {
       case "pier": {
         P.hills(ctx, W, hz - 8 * k, 6 * k, 0.02 / k, 1, "#e8d6a8", { bottom: hz + 4 });
         const cols = ["#e86a5a", "#f2c04a", "#6ab0e0", "#f4f0e6", "#8ac07a", "#e89ac0"];
-        const step = Math.max(24, 30 * k);
-        for (let i = 0, x = W * 0.26; x < W * 0.86; i++, x += step + R() * 8) {
-          const w = (18 + R() * 10) * k, h = (20 + R() * 26) * k;
+        // houses come in little terraces with gaps between them, and vary in
+        // size, so the row never reads as a repeating border
+        let run = 0;
+        for (let i = 0, x = W * 0.22; x < W * 0.86; i++) {
+          if (run <= 0) { run = 2 + Math.floor(R() * 3); if (i) x += (14 + R() * 40) * k; }
+          run--;
+          const w = (16 + R() * 16) * k, h = (16 + R() * 34) * k;
+          if (x + w > W * 0.86) break;
           P.shape(ctx, [[x, hz], [x, hz - h], [x + w, hz - h], [x + w, hz]], cols[i % cols.length], 1.1, { penAlpha: 0.6 });
           P.shape(ctx, [[x - 3 * k, hz - h], [x + w / 2, hz - h - 11 * k], [x + w + 3 * k, hz - h]], "#9a4a3a", 1.1, { penAlpha: 0.6 });
           P.wash(ctx, [[x + 4 * k, hz - h + 6 * k], [x + 10 * k, hz - h + 6 * k], [x + 10 * k, hz - h + 12 * k], [x + 4 * k, hz - h + 12 * k]], "#4a6a8a", { layers: 1, edge: 0, alpha: 0.6 });
+          x += w + 2 * k;
         }
         const lx = W * 0.93, lh = Math.min(hz - this.topInset * 0.6, 100 * k);
         P.shape(ctx, [[lx - 10 * k, hz], [lx - 6 * k, hz - lh], [lx + 6 * k, hz - lh], [lx + 10 * k, hz]], "#f4f0e6", 1.3);
@@ -292,7 +298,11 @@ const Scene = {
       P.shape(ctx, [[-20, deck + 12 * u], [end + 6 * u, deck + 12 * u], [end + 6 * u, deck + 20 * u], [-20, deck + 20 * u]], "#7a4e2a", 1.8);
       P.shape(ctx, [[end - 7 * u, deck - 44 * u], [end, deck - 44 * u], [end, deck], [end - 7 * u, deck]], "#8a6038", 1.6);
       P.shape(ctx, [[-20, deck - 40 * u], [end, deck - 40 * u], [end, deck - 35 * u], [-20, deck - 35 * u]], "#8a6038", 1.4);
-      P.shape(ctx, P.blob(end - 30 * u, deck - 8 * u, 12 * u, 5 * u, 6, 14, 0.05), "#d8c8a0", 1.4);
+      // a coiled rope, so it reads as rope and not as a pale pebble
+      const rx = end - 30 * u, ry = deck - 6 * u;
+      P.shape(ctx, P.blob(rx, ry, 13 * u, 5.5 * u, 6, 14, 0.04), "#c9a66a", 1.4);
+      for (let i = 1; i <= 3; i++) P.line(ctx, () => ctx.ellipse(rx, ry - i * 0.6 * u, 13 * u * (1 - i * 0.24), 5.5 * u * (1 - i * 0.24), 0, 0, Math.PI * 2), 1.1, "#7a5a32", 0.7);
+      P.line(ctx, () => { ctx.moveTo(rx + 12 * u, ry + 1 * u); ctx.quadraticCurveTo(rx + 20 * u, ry + 6 * u, rx + 26 * u, ry + 3 * u); }, 1.8 * u, "#c9a66a", 1);
     }
 
     if (kind !== "open" && kind !== "deep") {
@@ -440,7 +450,11 @@ const Scene = {
       Paint.drawPerson(ctx, id, p.x, p.y, s, p.sit);
       if (id === "sam") {
         Paint.line(ctx, () => { ctx.moveTo(p.x + 20 * su, p.y - 48 * su); ctx.lineTo(p.x + 74 * su, p.y - 104 * su); }, Math.max(2, 3 * su), "#8a5a32");
-        Paint.line(ctx, () => { ctx.moveTo(p.x + 74 * su, p.y - 104 * su); ctx.lineTo(p.x + 82 * su, p.y + 28 * su); }, 1, "#fffdf2", 0.7);
+        // seated on a bank the line drops in front; standing on the pier it
+        // has to land in the strip of water behind the deck, not in the planks
+        const endY = p.sit ? p.y + 28 * su : p.y - 22 * su;
+        Paint.line(ctx, () => { ctx.moveTo(p.x + 74 * su, p.y - 104 * su); ctx.lineTo(p.x + 80 * su, endY); }, 1, "#fffdf2", 0.7);
+        if (!p.sit) Paint.bobber(ctx, p.x + 80 * su, endY, Math.max(3, 4 * su), false);
       }
     });
   },
@@ -526,6 +540,8 @@ const Scene = {
       bx = target.x + (hx + g.size * 0.8 - target.x) * r.prog + (r.p - r.c) * 60;
       by = target.y + (g.floor - 30 - target.y) * r.prog * 0.6 + (still ? 0 : Math.sin(t * 9) * 2);
       under = 0.6;
+      // the whole path the bobber can travel while reeling, for meter()
+      this.reelPath = { sx: target.x, sy: target.y, ex: hx + g.size * 0.8, ey: target.y + (g.floor - 30 - target.y) * 0.6 };
     }
 
     // rod: a dark core stroke, the rod's own colour, a tip
@@ -552,6 +568,7 @@ const Scene = {
     if (fish.phase !== "cast") this.ripples(ctx, bx, by + 4, t, fish.phase === "bite" ? 2 : 1);
     if (fish.phase === "bite") P.splash(ctx, bx, by, g.u * 0.8, Math.floor(t * 6));
     this.bobber(ctx, bx, by, g.u, under);
+    this.bobAt = fish.phase === "reel" ? { x: bx, y: by, under, u: g.u } : null;
 
     if (fish.phase === "bite") {
       const pulse = still ? 1 : 1 + Math.sin(t * 14) * 0.09;
@@ -655,14 +672,64 @@ const Scene = {
     }
   },
 
-  // The reel gauge, on a parchment plate above the control bar. It sits to the
-  // right when there is room, because the bobber is reeled in from the right.
+  // The reel gauge, on a parchment plate. It is painted over everything, so it
+  // must never sit on the bobber: each reel, it takes the first of a few spots
+  // that the bobber's whole path (start, reeled-in end, and the needle's
+  // sideways wobble) stays clear of, and keeps it for the rest of that reel.
   meter(ctx, g, r, t) {
-    const R = Math.max(56, Math.min(92, g.W * 0.12));
-    const y = g.floor - R * 0.8 - 10;
-    const right = g.W - R * 1.55 - 14;
-    const x = right - R * 1.5 > g.px + g.size * 0.3 ? right : g.W / 2;
-    Paint.gauge(ctx, x, y, R, r, t, this.reduceMotion);
+    if (this.meterFor !== r || this.meterKey !== `${g.W}|${g.H}`) {
+      this.meterFor = r; this.meterKey = `${g.W}|${g.H}`;
+      this.meterAt = this.placeMeter(ctx, g);
+    }
+    Paint.gauge(ctx, this.meterAt.x, this.meterAt.y, this.meterAt.R, r, t, this.reduceMotion);
+    // On a screen too short for any clear spot, the bobber is painted again on
+    // top of the plate: the thing being reeled in must never disappear.
+    const b = this.bobAt;
+    if (this.meterAt.score > 0 && b) this.bobber(ctx, b.x, b.y, b.u, b.under);
+  },
+
+  // Largest gauge first; on a short screen (a phone on its side) a smaller
+  // one that clears the bobber beats a big one sitting on top of it.
+  placeMeter(ctx, g) {
+    let best = null;
+    for (let R = Math.max(56, Math.min(92, g.W * 0.12)); R >= 40; R *= 0.88) {
+      const s = this.meterSpot(g, Paint.gaugeLayout(ctx, R));
+      if (!best || s.score < best.score) best = { ...s, R };
+      if (s.score === 0) break;
+    }
+    return best;
+  },
+
+  meterSpot(g, L) {
+    const right = g.W - L.half - 14, low = g.floor - 12 - L.bottom;
+    // the top spot drops below any HUD note that reaches across into it
+    const notes = this.covered ? this.covered() : [];
+    const topFor = (x) => notes.reduce((y, n) => (n.x1 > x - L.half - 6 && n.x0 < x + L.half + 6 ? Math.max(y, n.y1 + 8) : y), this.topInset + 10);
+    const high = topFor(right) - L.top, highMid = topFor(g.W / 2) - L.top;
+    // Top right first: the bobber lands in the middle band of the water and
+    // is reeled down and left, so the old bottom-right spot sat on its path
+    // in nearly every reel. The sky above the landing band is usually free.
+    const spots = [{ x: right, y: high }, { x: right, y: low }, { x: g.W / 2, y: highMid }, { x: g.W / 2, y: low }]
+      .filter((s) => s.x - L.half > 4 && s.y + L.top > this.topInset - 4 && s.y + L.bottom < g.floor);
+    const p = this.reelPath;
+    const hits = (s) => {
+      if (!p) return 0;
+      let n = 0;
+      for (let i = 0; i <= 24; i++) {
+        const f = i / 24, x = p.sx + (p.ex - p.sx) * f, y = p.sy + (p.ey - p.sy) * f;
+        if (x > s.x - L.half - 36 && x < s.x + L.half + 36 && y > s.y + L.top - 24 && y < s.y + L.bottom + 24) n++;
+      }
+      return n;
+    };
+    // the angler's own box counts too: never paint the gauge over the player
+    const overAngler = (s) => s.x - L.half < g.px + g.size * 0.3 && s.y + L.bottom > g.py - g.size * 1.1;
+    let best = { x: g.W / 2, y: low, score: 1e9 };
+    for (const s of spots) {
+      const score = hits(s) * 10 + (overAngler(s) ? 100 : 0);
+      if (score < best.score) best = { ...s, score };
+      if (score === 0) break;
+    }
+    return best;
   },
 
   /* ------------------------------------------------------------ the harbour (Business screen) */

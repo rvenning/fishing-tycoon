@@ -230,8 +230,12 @@ const Paint = (() => {
   function cloud(ctx, x, y, s, seed, shade = "#c9dbe0") {
     const parts = [[0, 0, 26], [24, -12, 30], [52, -2, 24], [74, 6, 18], [-22, 8, 16]];
     for (const [dx, dy, rr] of parts) wash(ctx, blob(x + dx * s, y + dy * s + 6 * s, rr * s * 1.05, rr * s * 0.7, seed + dx, 16, 0.08), shade, { layers: 1, edge: 0, alpha: 0.55 });
-    for (const [dx, dy, rr] of parts) wash(ctx, blob(x + dx * s, y + dy * s, rr * s, rr * s * 0.8, seed + dx + 5, 16, 0.08), "#fffdf6", { layers: 2, edge: 0, alpha: 0.9 });
-    ink(ctx, blob(x + 26 * s, y + 2 * s, 64 * s, 26 * s, seed, 22, 0.18), true, 0.9 * Math.max(0.7, s), "#8aa6b0", 0.35);
+    // The pen follows the puffs: stroke every puff, then paint the white over
+    // them, so only the outside edge of the whole cloud is left showing. (One
+    // big ellipse round the lot read as a stray outline floating beside it.)
+    const puffs = parts.map(([dx, dy, rr]) => blob(x + dx * s, y + dy * s, rr * s, rr * s * 0.8, seed + dx + 5, 16, 0.08));
+    for (const pts of puffs) { trace(ctx, pts); ctx.strokeStyle = rgba("#8aa6b0", 0.4); ctx.lineWidth = 1.8 * Math.max(0.7, s); ctx.stroke(); }
+    for (const pts of puffs) wash(ctx, pts, "#fffdf6", { layers: 2, edge: 0, alpha: 1 });
   }
 
   function reed(ctx, x, y, h, lean, sway, seed, head = true) {
@@ -451,14 +455,55 @@ const Paint = (() => {
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, x, y + r * 0.1);
   }
 
+  // A hand-drawn rounded card: a rounded rectangle traced with a faint wobble.
+  function card(x0, y0, x1, y1, r, seed) {
+    const R = mulberry(seed * 31 + 7), pts = [], w = Math.min(2, r * 0.08);
+    const corners = [[x1 - r, y0 + r, -0.5], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, 0.5], [x0 + r, y0 + r, 1]];
+    for (const [cx, cy, a0] of corners) {
+      for (let i = 0; i <= 4; i++) {
+        const a = (a0 + i / 8) * Math.PI;
+        pts.push([cx + Math.cos(a) * r + (R() - 0.5) * w, cy + Math.sin(a) * r + (R() - 0.5) * w]);
+      }
+    }
+    pts.soft = true;
+    return pts;
+  }
+
   // The reel meter as a curved gauge. It shows exactly what the flat meter
   // did — one marker, one green band, two ends — plus landing and strain.
+  //
+  // Everything is measured before anything is drawn, so the words and bars
+  // always sit INSIDE the plate. gaugeLayout() is exported so the scene can
+  // keep the whole plate on screen; offsets are relative to the arc centre.
+  const GAUGE_FONT = "Nunito, system-ui, sans-serif";
+  const STATUS = { loose: "TOO LOOSE — HOLD!", tight: "TOO TIGHT — LET GO!", ok: "KEEP IT IN THE GREEN" };
+  function gaugeLayout(ctx, R) {
+    const fs = Math.max(12, Math.round(R * 0.16)), bfs = Math.max(11, fs - 1);
+    const pad = Math.max(10, Math.round(R * 0.16)), gap = Math.max(10, R * 0.14);
+    const bh = Math.max(7, Math.round(R * 0.1));
+    ctx.save();
+    ctx.font = `900 ${fs}px ${GAUGE_FONT}`;
+    const statusW = Math.max(...Object.values(STATUS).map((s) => ctx.measureText(s).width));
+    ctx.font = `900 ${bfs}px ${GAUGE_FONT}`;
+    const labelW = Math.max(ctx.measureText("🐟 LANDING").width, ctx.measureText("⚠ STRAIN").width);
+    ctx.restore();
+    const half = Math.ceil(Math.max(R * 1.45, statusW / 2 + pad, labelW + gap / 2 + pad));
+    const status = R * 0.36;                        // centre of the warning line
+    const barLabel = status + fs * 1.35;             // centre of the bar labels
+    const barY = barLabel + bfs * 0.7;               // top of the bars
+    return { fs, bfs, pad, gap, bh, half, status, barLabel, barY,
+             top: -R * 1.25 - pad, bottom: barY + bh + pad };
+  }
+
   function gauge(ctx, x, y, R, st, t, reduce) {
+    const L = gaugeLayout(ctx, R);
     const a0 = Math.PI * 1.1, a1 = Math.PI * 1.9, at = (f) => a0 + (a1 - a0) * f;
-    const plate = [[x - R * 1.42, y - R * 1.38], [x + R * 1.42, y - R * 1.38], [x + R * 1.46, y + R * 0.72], [x - R * 1.46, y + R * 0.72]];
-    wash(ctx, blob(x, y - R * 0.33, R * 1.5, R * 1.1, 9, 26, 0.03), "#fbf1d8", { layers: 2, edge: 0.3 });
-    ink(ctx, blob(x, y - R * 0.33, R * 1.5, R * 1.1, 9, 26, 0.03), true, 2.4);
-    void plate;
+    const plate = card(x - L.half, y + L.top, x + L.half, y + L.bottom, Math.min(28, R * 0.3), 9);
+    ctx.save(); ctx.shadowColor = "rgba(40,25,10,0.25)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+    trace(ctx, plate); ctx.fillStyle = "#fbf1d8"; ctx.fill(); ctx.restore();
+    wash(ctx, plate, "#fbf1d8", { layers: 2, edge: 0.3 });
+    ink(ctx, plate, true, 2.4);
+
     const lo = st.c - st.zone / 2, hi = st.c + st.zone / 2;
     ctx.lineCap = "butt";
     ctx.beginPath(); ctx.arc(x, y, R, a0, a1); ctx.strokeStyle = "#efdfbb"; ctx.lineWidth = R * 0.3; ctx.stroke();
@@ -482,28 +527,34 @@ const Paint = (() => {
     ctx.beginPath(); ctx.arc(x + Math.cos(a) * R * 1.12, y + Math.sin(a) * R * 1.12, Math.max(3, R * 0.05), 0, Math.PI * 2); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, R * 0.13, 0, Math.PI * 2); ctx.fillStyle = "#b07a3e"; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
 
-    const fs = Math.max(11, Math.round(R * 0.15));
-    ctx.textBaseline = "middle"; ctx.textAlign = "center";
+    // the two ends, named under the arc; the one you are past turns red
     const flashing = !reduce && Math.sin(t * 14) > 0;
-    const tag = (txt, tx, ty, on, col) => {
-      ctx.font = `900 ${fs}px Nunito, system-ui, sans-serif`;
-      ctx.fillStyle = on ? (flashing ? col : INK) : rgba(INK, 0.55);
-      ctx.fillText(txt, tx, ty);
-    };
-    tag(st.side < 0 ? "TOO LOOSE — HOLD!" : "LOOSE", x - R * 0.9, y + R * 0.12, st.side < 0, "#b8402e");
-    tag(st.side > 0 ? "TOO TIGHT — LET GO!" : "TIGHT", x + R * 0.9, y + R * 0.12, st.side > 0, "#b8402e");
+    ctx.textBaseline = "middle"; ctx.textAlign = "center";
+    ctx.font = `900 ${L.bfs}px ${GAUGE_FONT}`;
+    const endY = y - R * 0.08;
+    ctx.fillStyle = st.side < 0 ? "#b8402e" : rgba(INK, 0.6); ctx.fillText("LOOSE", x - R * 1.0, endY);
+    ctx.fillStyle = st.side > 0 ? "#b8402e" : rgba(INK, 0.6); ctx.fillText("TIGHT", x + R * 1.0, endY);
+
+    // what to do, in one centred line under the hub
+    ctx.font = `900 ${L.fs}px ${GAUGE_FONT}`;
+    if (st.side) {
+      ctx.fillStyle = flashing ? "#b8402e" : INK;
+      ctx.fillText(st.side < 0 ? STATUS.loose : STATUS.tight, x, y + L.status);
+    } else {
+      ctx.fillStyle = "#2f6a1a"; ctx.fillText(STATUS.ok, x, y + L.status);
+    }
 
     // landing and strain, as two labelled bars across the foot of the plate
-    const bw = R * 1.05, by = y + R * 0.42, bh = Math.max(7, R * 0.1);
+    const bw = (L.half - L.pad) - L.gap / 2, by = y + L.barY, bh = L.bh;
     const bar = (bx, label, frac, col) => {
-      ctx.font = `900 ${Math.max(10, fs - 1)}px Nunito, system-ui, sans-serif`; ctx.fillStyle = INK; ctx.textAlign = "left";
-      ctx.fillText(label, bx, by - bh * 0.9);
+      ctx.font = `900 ${L.bfs}px ${GAUGE_FONT}`; ctx.fillStyle = INK; ctx.textAlign = "left";
+      ctx.fillText(label, bx, y + L.barLabel);
       ctx.fillStyle = "#e6d6b2"; ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = col; ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, frac)), bh);
       ctx.strokeStyle = rgba(INK, 0.8); ctx.lineWidth = 1.4; ctx.strokeRect(bx, by, bw, bh);
     };
-    bar(x - R * 1.2, "🐟 LANDING", st.prog, "#6fae44");
-    bar(x + R * 0.15, "⚠ STRAIN", st.strain, st.strain > 0.6 && flashing ? "#f0b93f" : "#cf4434");
+    bar(x - L.half + L.pad, "🐟 LANDING", st.prog, "#6fae44");
+    bar(x + L.gap / 2, "⚠ STRAIN", st.strain, st.strain > 0.6 && flashing ? "#f0b93f" : "#cf4434");
   }
 
   /* ---------------------------------------------------------------- small paintings */
@@ -692,7 +743,7 @@ const Paint = (() => {
     paper, grain, wood, installTextures, grainOver,
     GREENS, tree, conifer, cloud, reed, grassTuft, flowers, lilyPad, cottage, rock, hills,
     PEOPLE, figure, personSprite, drawPerson,
-    bobber, splash, badge, gauge,
+    bobber, splash, badge, gauge, gaugeLayout, card,
     landscape, logo, icon, mount,
   };
 })();
