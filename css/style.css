@@ -197,6 +197,8 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
 .splash-inner .btn { width: 100%; max-width: 340px; }
 .splash-foot { display: flex; align-items: center; gap: 12px; color: var(--ink); font-weight: 800; font-size: 0.95rem; }
 .gk-version { color: var(--ink) !important; opacity: 1 !important; }
+/* the version line sits right under the sync badge, not at the foot of the screen */
+#gk-version .gk-version { margin: -6px 0 0; padding: 0; }
 
 /* ---------- the fishing stage ---------- */
 .stage { position: relative; flex: 1 1 auto; width: 100%; height: 100%; overflow: hidden; background: #bcdbe2; }
@@ -368,9 +370,19 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   content: ""; position: absolute; inset: 11%; border-radius: 50%;
   border: 2px solid rgba(74, 50, 34, 0.4);
 }
-.cast-btn .dial-mark { width: 30%; height: auto; aspect-ratio: 1; margin-bottom: -2px; position: relative; }
-.cast-btn span { font-family: var(--display); font-weight: 400; font-size: clamp(1.35rem, 4.2vw, 1.9rem); letter-spacing: 0.02em; line-height: 1; position: relative; }
-.cast-btn small { font-size: 0.78rem; font-weight: 900; margin-top: 2px; position: relative; color: var(--ink); }
+/* Everything inside is sized from the dial itself (cqi = 1% of its width), so
+   the words stay inside the bezel at any screen size. */
+.cast-btn { container-type: inline-size; }
+.cast-btn .dial-mark { width: 24%; height: auto; aspect-ratio: 1; margin-bottom: -1px; position: relative; }
+.cast-btn span { font-family: var(--display); font-weight: 400; font-size: 16.5cqi; letter-spacing: 0.02em; line-height: 1; position: relative; }
+.cast-btn small { font-size: 7.2cqi; font-weight: 900; margin-top: 1px; line-height: 1.1; position: relative; color: var(--ink); white-space: nowrap; }
+/* A phone-sized dial has no room for a readable hint line; the big word alone
+   (CAST, WAIT…, TAP!, REEL) still says what to do. */
+@container (max-width: 112px) {
+  .cast-btn small { display: none; }
+  .cast-btn span { font-size: 15.5cqi; }
+  .cast-btn .dial-mark { width: 22%; }
+}
 .cast-btn:active, .cast-btn.held { transform: translateY(5px); box-shadow: inset 0 0 0 4px var(--wood-dk), inset 0 0 0 7px rgba(255, 220, 170, 0.35), 0 0 0 var(--wood-dk), 0 6px 12px rgba(40, 25, 10, 0.3); }
 .cast-btn.bite { --f1: #fff6d6; --f2: #f7cf6a; --f3: #f0b93f; animation: bitePulse 0.35s ease-in-out infinite; }
 .cast-btn.bite small { color: var(--ink); }
@@ -612,8 +624,6 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   .nav-btn .nav-ic { width: 32px; height: 32px; }
   .nav-btn span { padding: 0 1px; }
   .cast-btn { margin-top: -34px; }
-  .cast-btn span { font-size: clamp(1rem, 5.6vw, 1.5rem); }
-  .cast-btn small { font-size: 0.56rem; white-space: nowrap; }
   .pill { padding: 0 10px 0 8px; font-size: 1.2rem; }
   .loc-pill b { display: none; }
   .money-pill { padding: 3px 10px 3px 6px; }
@@ -634,8 +644,6 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
   .nav-btn .nav-ic { width: 22px; height: 22px; }
   .haul-btn .fill { height: 4px; margin-top: 1px; }
   .cast-btn { max-width: 104px; margin-top: -30px; }
-  .cast-btn span { font-size: 1.2rem; }
-  .cast-btn small { font-size: 0.58rem; white-space: nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {
