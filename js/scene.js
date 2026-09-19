@@ -188,6 +188,29 @@ const Scene = {
     const wg = ctx.createLinearGradient(0, hz, 0, H);
     wg.addColorStop(0, Wd.water[0]); wg.addColorStop(0.35, Wd.water[1]); wg.addColorStop(1, Wd.water[2]);
     ctx.fillStyle = wg; ctx.fillRect(0, hz, W, H - hz);
+
+    // Carry the sky's light down into the water. Wide screens otherwise read
+    // as a large, even teal rectangle; broken glints lead the eye from the sun
+    // towards the float without becoming another gameplay object.
+    if (kind !== "deep") {
+      const lightX = W * 0.8;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, hz, W, H - hz); ctx.clip();
+      ctx.strokeStyle = "rgba(255,244,201,0.28)";
+      ctx.lineCap = "round";
+      for (let i = 0; i < 13; i++) {
+        const p = i / 12, y = hz + (H - hz) * (0.05 + p * 0.7);
+        const spread = (18 + p * 100) * k;
+        const x = lightX + (R() - 0.5) * spread;
+        const len = (10 + R() * (22 + p * 34)) * k;
+        ctx.globalAlpha = 0.34 + R() * 0.38;
+        ctx.lineWidth = (0.8 + R() * 1.2) * k;
+        ctx.beginPath(); ctx.moveTo(x - len * 0.5, y);
+        ctx.quadraticCurveTo(x, y - (1 + R() * 2) * k, x + len * 0.5, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     if (kind === "pond" || kind === "river" || kind === "lake") {
       // the far shore mirrored in the water
       ctx.save();
