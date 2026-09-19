@@ -194,6 +194,9 @@ const Scene = {
     // towards the float without becoming another gameplay object.
     if (kind !== "deep") {
       const lightX = W * 0.8;
+      // the sun's path runs straight through where the bobber lands, and a
+      // pale streak there reads as a dip; leave that stretch unlit
+      const bz = this.bobberZone(g), pad = 12;
       ctx.save();
       ctx.beginPath(); ctx.rect(0, hz, W, H - hz); ctx.clip();
       ctx.strokeStyle = "rgba(255,244,201,0.28)";
@@ -203,10 +206,12 @@ const Scene = {
         const spread = (18 + p * 100) * k;
         const x = lightX + (R() - 0.5) * spread;
         const len = (10 + R() * (22 + p * 34)) * k;
-        ctx.globalAlpha = 0.34 + R() * 0.38;
-        ctx.lineWidth = (0.8 + R() * 1.2) * k;
+        const alpha = 0.34 + R() * 0.38, lw = (0.8 + R() * 1.2) * k, lift = (1 + R() * 2) * k;
+        if (x + len * 0.5 > bz.x0 - pad && x - len * 0.5 < bz.x1 + pad && y > bz.y0 - pad && y < bz.y1 + pad) continue;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lw;
         ctx.beginPath(); ctx.moveTo(x - len * 0.5, y);
-        ctx.quadraticCurveTo(x, y - (1 + R() * 2) * k, x + len * 0.5, y);
+        ctx.quadraticCurveTo(x, y - lift, x + len * 0.5, y);
         ctx.stroke();
       }
       ctx.restore();

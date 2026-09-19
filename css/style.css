@@ -533,7 +533,10 @@ button:focus-visible, .tab:focus-visible, .species:focus-visible { outline: 3px 
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .btn:hover:not(:disabled), .icon-btn:hover:not(:disabled), .nav-btn:hover:not(:disabled), .tab:hover:not(.on) {
+  /* :not(:active), or this out-ranks the pressed-down rules and a clicked
+     button stays lifted instead of sinking */
+  .btn:hover:not(:disabled):not(:active), .icon-btn:hover:not(:disabled):not(:active),
+  .nav-btn:hover:not(:disabled):not(:active), .tab:hover:not(.on):not(:active) {
     transform: translateY(-2px); filter: brightness(1.035);
   }
   .place:hover { transform: translateY(-3px) rotate(-.2deg); box-shadow: 0 7px 0 rgba(90,58,32,.23), 0 15px 28px rgba(60,35,15,.13); }
