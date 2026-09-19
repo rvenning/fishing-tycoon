@@ -212,12 +212,19 @@ const Scene = {
       ctx.restore();
     }
     if (kind === "pond" || kind === "river" || kind === "lake") {
-      // the far shore mirrored in the water
+      // The far shore mirrored in the water, painted small and stretched back
+      // up, which softens it like a blur. Never ctx.filter here: Chrome runs a
+      // filter per draw call, and the tree line is ~1,800 of them, each a
+      // full-canvas blur — enough to hang the GPU and freeze a whole PC.
+      const q = 0.35, off = document.createElement("canvas");
+      off.width = Math.ceil(W * q); off.height = Math.ceil(H * q);
+      const oc = off.getContext("2d");
+      oc.scale(q, q); oc.translate(0, hz * 2 + 2); oc.scale(1, -0.85);
+      this.treeLine(oc, tl, kind, kind === "lake" ? 0.85 : kind === "river" ? 0.2 : 0.3, true);
       ctx.save();
       ctx.beginPath(); ctx.rect(0, hz, W, H - hz); ctx.clip();
-      ctx.globalAlpha = 0.16; ctx.filter = "blur(1.5px)";
-      ctx.translate(0, hz * 2 + 2); ctx.scale(1, -0.85);
-      this.treeLine(ctx, tl, kind, kind === "lake" ? 0.85 : kind === "river" ? 0.2 : 0.3, true);
+      ctx.globalAlpha = 0.16; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(off, 0, 0, W, H);
       ctx.restore();
     }
     const RS = P.mulberry(kind.length * 7 + 1);
