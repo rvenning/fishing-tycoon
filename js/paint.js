@@ -495,14 +495,37 @@ const Paint = (() => {
              top: -R * 1.25 - pad, bottom: barY + bh + pad };
   }
 
+  // The gauge's parchment plate never changes during a reel, and its soft
+  // shadow is a canvas shadowBlur, which Safari re-blurs on the CPU on every
+  // draw. Paint it once per size and stamp it, like the people.
+  const plates = new Map();
+  function plateSprite(L, R) {
+    const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1);
+    const key = `${L.half}|${L.top}|${L.bottom}|${R}|${dpr}`;
+    let hit = plates.get(key);
+    if (hit) return hit;
+    const m = 18;                                   // room for the shadow
+    const w = L.half * 2 + m * 2, h = L.bottom - L.top + m * 2;
+    const cv = document.createElement("canvas");
+    cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, (L.half + m) * dpr, (m - L.top) * dpr);
+    const plate = card(-L.half, L.top, L.half, L.bottom, Math.min(28, R * 0.3), 9);
+    c.save(); c.shadowColor = "rgba(40,25,10,0.25)"; c.shadowBlur = 10; c.shadowOffsetY = 4;
+    trace(c, plate); c.fillStyle = "#fbf1d8"; c.fill(); c.restore();
+    wash(c, plate, "#fbf1d8", { layers: 2, edge: 0.3 });
+    ink(c, plate, true, 2.4);
+    hit = { cv, w, h, ox: L.half + m, oy: m - L.top };
+    if (plates.size > 12) plates.clear();          // bounded: a resize mints new sizes
+    plates.set(key, hit);
+    return hit;
+  }
+
   function gauge(ctx, x, y, R, st, t, reduce) {
     const L = gaugeLayout(ctx, R);
     const a0 = Math.PI * 1.1, a1 = Math.PI * 1.9, at = (f) => a0 + (a1 - a0) * f;
-    const plate = card(x - L.half, y + L.top, x + L.half, y + L.bottom, Math.min(28, R * 0.3), 9);
-    ctx.save(); ctx.shadowColor = "rgba(40,25,10,0.25)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
-    trace(ctx, plate); ctx.fillStyle = "#fbf1d8"; ctx.fill(); ctx.restore();
-    wash(ctx, plate, "#fbf1d8", { layers: 2, edge: 0.3 });
-    ink(ctx, plate, true, 2.4);
+    const sp = plateSprite(L, R);
+    ctx.drawImage(sp.cv, x - sp.ox, y - sp.oy, sp.w, sp.h);
 
     const lo = st.c - st.zone / 2, hi = st.c + st.zone / 2;
     ctx.lineCap = "butt";

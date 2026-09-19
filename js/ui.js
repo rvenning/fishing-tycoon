@@ -14,7 +14,7 @@ const UI = {
 
   money() {
     const txt = fmtMoney(Econ.cash(App.S));
-    document.querySelectorAll("[data-money]").forEach((e) => { e.textContent = txt; });
+    document.querySelectorAll("[data-money]").forEach((e) => { if (e.textContent !== txt) e.textContent = txt; });
   },
 
   /* ------------------------------------------------------------ effects in words */

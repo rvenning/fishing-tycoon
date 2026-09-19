@@ -33,6 +33,13 @@ const App = {
 
   // The HUD refreshes ten times a second; only touch the DOM when the markup changed.
   setHTML(el, html) { if (el._html !== html) { el._html = html; el.innerHTML = html; } },
+  // The HUD sits over a canvas that repaints every frame; on iPad Safari every
+  // DOM write, even of the same value, costs a style and layout pass there.
+  // So the frame loop and hud() only ever write what has changed.
+  setText(el, text) { if (el.textContent !== text) el.textContent = text; },
+  setAttr(el, name, value) { if (el.getAttribute(name) !== value) el.setAttribute(name, value); },
+  setClass(el, cls) { if (el.className !== cls) el.className = cls; },
+  setHidden(el, hidden) { if (el.hidden !== hidden) el.hidden = hidden; },
 
   init() {
     this.prefs = Storage.prefs();
@@ -725,10 +732,10 @@ const App = {
     const S = this.S;
     if (!S) return;
     const loc = LOCATION[S.loc];
-    this.el("hud-loc-emoji").textContent = loc.emoji;
-    this.el("hud-loc").textContent = loc.name;
+    this.setText(this.el("hud-loc-emoji"), loc.emoji);
+    this.setText(this.el("hud-loc"), loc.name);
     const perMin = Econ.perMin(S);
-    this.el("hud-rate").textContent = perMin > 0 ? `+${fmtMoney(perMin)}/min` : "";
+    this.setText(this.el("hud-rate"), perMin > 0 ? `+${fmtMoney(perMin)}/min` : "");
 
     const cap = Econ.capacity(S), n = S.haul.length;
     const haul = this.el("nav-haul");
@@ -736,10 +743,10 @@ const App = {
     const narrow = window.innerWidth < 520;
     this.setHTML(this.el("haul-label"), `${narrow ? "" : "Haul "}${n}/${cap}${n ? `<small>${fmtMoney(val)}</small>` : ""}`);
     haul.classList.toggle("full", n >= cap);
-    haul.setAttribute("aria-label", `Haul: ${n} of ${cap}, worth ${fmtMoney(val)}. Tap to sell.`);
+    this.setAttr(haul, "aria-label", `Haul: ${n} of ${cap}, worth ${fmtMoney(val)}. Tap to sell.`);
     let fill = haul.querySelector(".fill");
     if (!fill) { fill = document.createElement("span"); fill.className = "fill"; fill.innerHTML = "<b></b>"; haul.appendChild(fill); }
-    fill.firstChild.style.width = `${Math.min(100, (n / cap) * 100)}%`;
+    { const w = `${Math.min(100, (n / cap) * 100)}%`; if (fill.firstChild.style.width !== w) fill.firstChild.style.width = w; }
 
     this.setHTML(this.el("nav-journal-n"), `Journal<small>${Object.keys(S.journal).length}/${CATCHES.length}</small>`);
 
@@ -748,7 +755,7 @@ const App = {
     const chipT = this.el("chip-target");
     if (tgt) {
       const ready = tgt.gap <= 0;
-      chipT.className = "chip" + (ready ? " ready" : "");
+      this.setClass(chipT, "chip" + (ready ? " ready" : ""));
       this.setHTML(chipT, `<span class="k">${ready ? "You can afford" : "Saving up for"}</span>${tgt.emoji} ${esc(tgt.name)}${ready ? " — tap!" : ` · ${fmtMoney(tgt.gap)} to go`}<span class="bar-fill" style="width:${Math.round(tgt.frac * 100)}%"></span>`);
     } else this.setHTML(chipT, "");
 
@@ -756,11 +763,11 @@ const App = {
     const up = Econ.upcoming(S, 1)[0];
     const chipG = this.el("chip-goal");
     if (up) {
-      chipG.className = "chip" + (up.done ? " ready" : "");
+      this.setClass(chipG, "chip" + (up.done ? " ready" : ""));
       const prog = up.need > 1 ? (up.g.unit === "kg" ? ` · ${fmtKg(up.cur)}/${fmtKg(up.need)}` : up.g.unit === "$" || up.g.id.startsWith("earn") ? "" : ` · ${Math.floor(up.cur)}/${up.need}`) : "";
       this.setHTML(chipG, `<span class="k">${up.done ? "Goal complete!" : "Goal"}</span>${up.g.emoji} ${esc(up.done ? up.g.name + " — collect!" : up.g.text)}${prog}<span class="bar-fill" style="width:${Math.round((up.cur / up.need) * 100)}%"></span>`);
     } else this.setHTML(chipG, "");
-    this.el("goal-dot").hidden = !Econ.claimable(S).length;
+    this.setHidden(this.el("goal-dot"), !Econ.claimable(S).length);
 
     // Nudge toward the shop once there's money and nothing is bought yet.
     const shopPulse = S.tut === 4 || (S.stats.bought === 0 && S.stats.sales > 0);
@@ -768,7 +775,7 @@ const App = {
     this.el("nav-haul").classList.toggle("pulse", S.tut === 3 && n >= Math.min(3, cap) && n < cap);
 
     if (this.ev) this.eventBanner();
-    UI.money();
+    if (GK.UI.screen !== "game") UI.money();   // the tags live on other screens, which refresh them when shown
   },
 
   castButton() {
@@ -785,7 +792,7 @@ const App = {
     if (btn.className !== next) btn.className = next;
     if (label.textContent !== l) label.textContent = l;
     if (sub.textContent !== s) sub.textContent = s;
-    btn.setAttribute("aria-label", `${l} ${s}`.trim());
+    this.setAttr(btn, "aria-label", `${l} ${s}`.trim());
   },
 
   animateCash(dt) {
@@ -796,9 +803,12 @@ const App = {
     const diff = real - this.shownCash;
     if (Math.abs(diff) < 1) this.shownCash = real;
     else this.shownCash += diff * Math.min(1, dt * 7) + Math.sign(diff) * Math.min(Math.abs(diff), dt * 20);
-    const txt = fmtMoney(Math.round(this.shownCash));
-    const el = this.el("hud-cash");
-    if (el.textContent !== txt) el.textContent = txt;
+    // Passive income moves the counter every frame; the eye can't read more
+    // than a dozen changes a second, and each write re-lays-out the money pill.
+    this.cashTimer = (this.cashTimer || 0) + dt;
+    if (this.shownCash !== real && this.cashTimer < 1 / 12) return;
+    this.cashTimer = 0;
+    this.setText(this.el("hud-cash"), fmtMoney(Math.round(this.shownCash)));
   },
 
   bumpMoney() {
